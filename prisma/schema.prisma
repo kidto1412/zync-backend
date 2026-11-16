@@ -1,0 +1,95 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum PlanType {
+  FREE
+  PRO_LIFETIME
+}
+
+enum PaymentStatus {
+  PENDING
+  SETTLED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  KASERAPAY
+  MIDTRANS
+  XENDIT
+  LEMON_SQUEEZY
+  GUMROAD
+}
+
+model User {
+  id            String          @id @default(uuid())
+  email         String?         @unique
+  password      String?
+  name          String?
+  plan          PlanType        @default(FREE)
+  licenseKey    String?         @unique
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  devices       Device[]
+  orders        Order[]
+  vaultEntries  VaultEntry[]
+
+  @@map("users")
+}
+
+model Device {
+  id            String          @id @default(uuid())
+  userId        String?
+  user          User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId      String          @unique
+  deviceName    String
+  platform      String
+  publicKey     String
+  autoAccept    Boolean         @default(true)
+  clipboardSync Boolean         @default(true)
+  lastActiveAt  DateTime        @default(now())
+  createdAt     DateTime        @default(now())
+
+  @@index([userId])
+  @@map("devices")
+}
+
+model VaultEntry {
+  id            String          @id @default(uuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceDevice  String
+  contentType   String
+  encryptedData String
+  iv            String
+  byteSize      Int
+  expiresAt     DateTime
+  createdAt     DateTime        @default(now())
+
+  @@index([userId, expiresAt])
+  @@map("vault_entries")
+}
+
+model Order {
+  id              String          @id @default(uuid())
+  userId          String?
+  user            User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  provider        PaymentProvider
+  externalOrderId String          @unique
+  amount          Decimal         @db.Decimal(12, 2)
+  currency        String
+  status          PaymentStatus   @default(PENDING)
+  licenseIssued   String?
+  rawPayload      Json?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@map("orders")
+}
