@@ -36,7 +36,7 @@ export class RedisRoomCacheService implements RoomCachePort {
     // Save in Redis with TTL
     try {
       const client = this.redisService.getClient();
-      if (client && this.redisService.isConnected()) {
+      if (client) {
         await client
           .multi()
           .set(this.getRoomKey(room.id), serialized, 'EX', room.ttlSeconds)
@@ -51,7 +51,7 @@ export class RedisRoomCacheService implements RoomCachePort {
   async findByPin(pin: string): Promise<Room | null> {
     try {
       const client = this.redisService.getClient();
-      if (client && this.redisService.isConnected()) {
+      if (client) {
         const roomId = await client.get(this.getPinKey(pin));
         if (roomId) {
           return this.findById(roomId);
@@ -69,7 +69,7 @@ export class RedisRoomCacheService implements RoomCachePort {
   async findById(roomId: string): Promise<Room | null> {
     try {
       const client = this.redisService.getClient();
-      if (client && this.redisService.isConnected()) {
+      if (client) {
         const raw = await client.get(this.getRoomKey(roomId));
         if (raw) {
           const parsed = JSON.parse(raw);

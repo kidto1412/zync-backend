@@ -84,6 +84,12 @@ export class PairingGateway implements OnGatewayConnection, OnGatewayDisconnect 
         roomId: result.room.id,
       });
 
+      // Also broadcast directly to the room
+      client.to(result.room.id).emit('room:peer-joined', {
+        peer: participant,
+        roomId: result.room.id,
+      });
+
       const joinedPayload = {
         roomId: result.room.id,
         host: result.host,
