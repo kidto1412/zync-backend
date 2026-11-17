@@ -14,6 +14,8 @@ import { JoinRoomUseCase } from '../../application/use-cases/join-room.use-case'
 @WebSocketGateway({
   cors: {
     origin: '*',
+    methods: ['GET', 'POST'],
+    credentials: false,
   },
   namespace: '/signaling',
 })
