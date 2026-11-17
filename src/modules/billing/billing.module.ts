@@ -2,8 +2,10 @@ import { Module } from '@nestjs/common';
 import { BillingController } from './presentation/http/billing.controller';
 import { KaseraPayService } from './infrastructure/gateways/kaserapay.service';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
+  imports: [AuthModule],
   controllers: [BillingController],
   providers: [KaseraPayService, PrismaService],
   exports: [KaseraPayService],
