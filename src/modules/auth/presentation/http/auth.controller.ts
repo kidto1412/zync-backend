@@ -25,12 +25,17 @@ export class AuthController {
             email: string;
             password: string;
             name?: string;
+            fullName?: string;
           }>(body);
 
     if (!payload.email || !payload.password) {
       throw new UnauthorizedException('Email dan password wajib diisi');
     }
-    const result = await this.registerUseCase.execute(payload);
+    const result = await this.registerUseCase.execute({
+      email: payload.email,
+      password: payload.password,
+      name: payload.fullName || payload.name || 'Pengguna ZYNQ',
+    });
     return {
       success: true,
       data: result,
