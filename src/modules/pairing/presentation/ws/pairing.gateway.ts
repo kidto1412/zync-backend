@@ -37,7 +37,7 @@ export class PairingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage('room:create')
   async handleCreateRoom(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { deviceName?: string; platform?: string; publicKey?: string }
+    @MessageBody() payload: { deviceName?: string; platform?: string; publicKey?: string; isPro?: boolean }
   ) {
     const participant = {
       clientId: client.id,
@@ -46,10 +46,12 @@ export class PairingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       publicKey: payload?.publicKey || '',
     };
 
-    const result = await this.createRoomUseCase.execute(participant);
+    const result = await this.createRoomUseCase.execute(participant, Boolean(payload?.isPro));
     client.join(result.roomId);
 
-    console.log(`[Signaling] Room created: ${result.roomId} | PIN: ${result.pin} | Host: ${participant.deviceName} (${client.id})`);
+    console.log(
+      `[Signaling] Room created: ${result.roomId} | PIN: ${result.pin} | Host: ${participant.deviceName} (${client.id}) | MaxPeers: ${result.maxPeers}`
+    );
 
     // Emit event directly to socket
     client.emit('room:created', result);
@@ -76,23 +78,21 @@ export class PairingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       const result = await this.joinRoomUseCase.execute(payload.pin, participant);
       client.join(result.room.id);
 
-      console.log(`[Signaling] Peer ${participant.deviceName} (${client.id}) joined room ${result.room.id} hosted by ${result.host.deviceName}`);
+      console.log(
+        `[Signaling] Peer ${participant.deviceName} (${client.id}) joined room ${result.room.id} hosted by ${result.host.deviceName}. Total peers: ${result.room.peers.length}/${result.room.maxPeers}`
+      );
 
-      // Notify host that peer has entered room
-      this.server.to(result.host.clientId).emit('room:peer-joined', {
-        peer: participant,
-        roomId: result.room.id,
-      });
-
-      // Also broadcast directly to the room
+      // Notify host and other peers that a new peer has entered room (Mesh broadcast)
       client.to(result.room.id).emit('room:peer-joined', {
         peer: participant,
+        peers: result.room.peers,
         roomId: result.room.id,
       });
 
       const joinedPayload = {
         roomId: result.room.id,
         host: result.host,
+        peers: result.room.peers,
       };
 
       // Emit event directly to socket

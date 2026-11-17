@@ -25,6 +25,8 @@ export class RedisRoomCacheService implements RoomCachePort {
       pin: room.pin,
       host: room.host,
       peer: room.peer,
+      peers: room.peers,
+      maxPeers: room.maxPeers,
       createdAt: room.createdAt.toISOString(),
       ttlSeconds: room.ttlSeconds,
     });
@@ -77,9 +79,10 @@ export class RedisRoomCacheService implements RoomCachePort {
             parsed.id,
             parsed.pin,
             parsed.host,
-            parsed.peer,
+            parsed.peers || (parsed.peer ? [parsed.peer] : []),
             new Date(parsed.createdAt),
-            parsed.ttlSeconds
+            parsed.ttlSeconds,
+            parsed.maxPeers || 1
           );
           if (room.isExpired()) {
             await this.delete(roomId);

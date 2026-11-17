@@ -69,4 +69,19 @@ export class PrismaVaultRepository implements VaultRepositoryPort {
       return 0;
     }
   }
+
+  async purgeAllByUserId(userId: string): Promise<number> {
+    try {
+      const res = await this.prisma.vaultEntry.deleteMany({
+        where: { userId },
+      });
+      return res.count;
+    } catch {
+      const initialLen = this.fallbackMemoryVault.length;
+      const filtered = this.fallbackMemoryVault.filter((e) => e.userId !== userId);
+      this.fallbackMemoryVault.length = 0;
+      this.fallbackMemoryVault.push(...filtered);
+      return initialLen - filtered.length;
+    }
+  }
 }

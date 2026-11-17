@@ -6,24 +6,52 @@ export interface Participant {
 }
 
 export class Room {
+  public peers: Participant[] = [];
+
   constructor(
     public readonly id: string,
     public readonly pin: string,
     public readonly host: Participant,
-    public peer: Participant | null = null,
+    peerOrPeers: Participant | Participant[] | null = null,
     public readonly createdAt: Date = new Date(),
-    public readonly ttlSeconds: number = 300 // 5 minutes
-  ) {}
+    public readonly ttlSeconds: number = 300, // 5 minutes
+    public maxPeers: number = 1 // Free Tier: 1 peer (2 devices total), Pro Tier: 4 peers (5 devices Group Beam)
+  ) {
+    if (Array.isArray(peerOrPeers)) {
+      this.peers = peerOrPeers;
+    } else if (peerOrPeers) {
+      this.peers = [peerOrPeers];
+    }
+  }
+
+  get peer(): Participant | null {
+    return this.peers[0] || null;
+  }
+
+  set peer(p: Participant | null) {
+    if (p) {
+      this.peers = [p];
+    } else {
+      this.peers = [];
+    }
+  }
 
   canJoin(): boolean {
-    return this.peer === null && !this.isExpired();
+    return this.peers.length < this.maxPeers && !this.isExpired();
   }
 
   addPeer(participant: Participant): void {
-    if (!this.canJoin()) {
-      throw new Error('Room is full or expired');
+    const existingIdx = this.peers.findIndex((p) => p.clientId === participant.clientId);
+    if (existingIdx >= 0) {
+      this.peers[existingIdx] = participant;
+      return;
     }
-    this.peer = participant;
+
+    if (!this.canJoin()) {
+      throw new Error(`Room sudah penuh (Maksimal ${this.maxPeers + 1} perangkat dalam sesi ini)`);
+    }
+
+    this.peers.push(participant);
   }
 
   isExpired(): boolean {

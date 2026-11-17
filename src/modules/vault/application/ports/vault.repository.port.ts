@@ -4,6 +4,7 @@ export interface VaultRepositoryPort {
   save(entry: VaultEntry): Promise<void>;
   findByUserId(userId: string): Promise<VaultEntry[]>;
   deleteExpired(): Promise<number>;
+  purgeAllByUserId(userId: string): Promise<number>;
 }
 
 export const VAULT_REPOSITORY_PORT = Symbol('VaultRepositoryPort');
