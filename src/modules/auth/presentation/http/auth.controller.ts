@@ -1,6 +1,7 @@
 import { Controller, Post, Get, Body, Headers, UnauthorizedException } from '@nestjs/common';
 import { RegisterUseCase, LoginUseCase } from '../../application/use-cases/auth.use-cases';
 import { JwtService } from '../../infrastructure/security/hash.service';
+import { PayloadEncryptionService } from '../../infrastructure/security/payload-encryption.service';
 import { UserRepositoryPort, USER_REPOSITORY_PORT } from '../../application/ports/user.repository.port';
 import { Inject } from '@nestjs/common';
 
@@ -10,16 +11,23 @@ export class AuthController {
     private readonly registerUseCase: RegisterUseCase,
     private readonly loginUseCase: LoginUseCase,
     private readonly jwtService: JwtService,
+    private readonly payloadEncryptionService: PayloadEncryptionService,
     @Inject(USER_REPOSITORY_PORT)
     private readonly userRepo: UserRepositoryPort
   ) {}
 
   @Post('register')
-  async register(@Body() body: { email: string; password: string; name?: string }) {
-    if (!body.email || !body.password) {
+  async register(@Body() body: any) {
+    const decrypted = this.payloadEncryptionService.decryptAuthPayload<{
+      email: string;
+      password: string;
+      name?: string;
+    }>(body);
+
+    if (!decrypted.email || !decrypted.password) {
       throw new UnauthorizedException('Email dan password wajib diisi');
     }
-    const result = await this.registerUseCase.execute(body);
+    const result = await this.registerUseCase.execute(decrypted);
     return {
       success: true,
       data: result,
@@ -27,11 +35,16 @@ export class AuthController {
   }
 
   @Post('login')
-  async login(@Body() body: { email: string; password: string }) {
-    if (!body.email || !body.password) {
+  async login(@Body() body: any) {
+    const decrypted = this.payloadEncryptionService.decryptAuthPayload<{
+      email: string;
+      password: string;
+    }>(body);
+
+    if (!decrypted.email || !decrypted.password) {
       throw new UnauthorizedException('Email dan password wajib diisi');
     }
-    const result = await this.loginUseCase.execute(body);
+    const result = await this.loginUseCase.execute(decrypted);
     return {
       success: true,
       data: result,

@@ -4,6 +4,7 @@ import { RegisterUseCase, LoginUseCase } from './application/use-cases/auth.use-
 import { USER_REPOSITORY_PORT } from './application/ports/user.repository.port';
 import { PrismaUserRepository } from './infrastructure/persistence/prisma-user.repository';
 import { HashService, JwtService } from './infrastructure/security/hash.service';
+import { PayloadEncryptionService } from './infrastructure/security/payload-encryption.service';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 
 @Module({
@@ -12,6 +13,7 @@ import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service
     PrismaService,
     HashService,
     JwtService,
+    PayloadEncryptionService,
     RegisterUseCase,
     LoginUseCase,
     {
@@ -19,6 +21,6 @@ import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service
       useClass: PrismaUserRepository,
     },
   ],
-  exports: [JwtService, USER_REPOSITORY_PORT],
+  exports: [JwtService, PayloadEncryptionService, USER_REPOSITORY_PORT],
 })
 export class AuthModule {}
