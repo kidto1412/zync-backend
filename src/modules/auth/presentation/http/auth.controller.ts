@@ -18,16 +18,19 @@ export class AuthController {
 
   @Post('register')
   async register(@Body() body: any) {
-    const decrypted = this.payloadEncryptionService.decryptAuthPayload<{
-      email: string;
-      password: string;
-      name?: string;
-    }>(body);
+    const payload =
+      body?.email && body?.password
+        ? body
+        : this.payloadEncryptionService.decryptAuthPayload<{
+            email: string;
+            password: string;
+            name?: string;
+          }>(body);
 
-    if (!decrypted.email || !decrypted.password) {
+    if (!payload.email || !payload.password) {
       throw new UnauthorizedException('Email dan password wajib diisi');
     }
-    const result = await this.registerUseCase.execute(decrypted);
+    const result = await this.registerUseCase.execute(payload);
     return {
       success: true,
       data: result,
@@ -36,15 +39,18 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() body: any) {
-    const decrypted = this.payloadEncryptionService.decryptAuthPayload<{
-      email: string;
-      password: string;
-    }>(body);
+    const payload =
+      body?.email && body?.password
+        ? body
+        : this.payloadEncryptionService.decryptAuthPayload<{
+            email: string;
+            password: string;
+          }>(body);
 
-    if (!decrypted.email || !decrypted.password) {
+    if (!payload.email || !payload.password) {
       throw new UnauthorizedException('Email dan password wajib diisi');
     }
-    const result = await this.loginUseCase.execute(decrypted);
+    const result = await this.loginUseCase.execute(payload);
     return {
       success: true,
       data: result,
