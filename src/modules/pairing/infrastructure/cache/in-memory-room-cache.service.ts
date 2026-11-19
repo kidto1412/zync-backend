@@ -6,14 +6,24 @@ import { RoomCachePort } from '../../application/ports/room-cache.port';
 export class InMemoryRoomCacheService implements RoomCachePort {
   private readonly roomsById = new Map<string, Room>();
   private readonly roomsByPin = new Map<string, string>(); // PIN -> roomId
+  private readonly roomsBySlug = new Map<string, string>(); // slug -> roomId
 
   async save(room: Room): Promise<void> {
     this.roomsById.set(room.id, room);
     this.roomsByPin.set(room.pin, room.id);
+    if (room.slug) {
+      this.roomsBySlug.set(room.slug.toLowerCase(), room.id);
+    }
   }
 
   async findByPin(pin: string): Promise<Room | null> {
     const roomId = this.roomsByPin.get(pin);
+    if (!roomId) return null;
+    return this.findById(roomId);
+  }
+
+  async findBySlug(slug: string): Promise<Room | null> {
+    const roomId = this.roomsBySlug.get(slug.toLowerCase());
     if (!roomId) return null;
     return this.findById(roomId);
   }
@@ -32,6 +42,9 @@ export class InMemoryRoomCacheService implements RoomCachePort {
     const room = this.roomsById.get(roomId);
     if (room) {
       this.roomsByPin.delete(room.pin);
+      if (room.slug) {
+        this.roomsBySlug.delete(room.slug.toLowerCase());
+      }
       this.roomsById.delete(roomId);
     }
   }

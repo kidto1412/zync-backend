@@ -14,8 +14,10 @@ export class Room {
     public readonly host: Participant,
     peerOrPeers: Participant | Participant[] | null = null,
     public readonly createdAt: Date = new Date(),
-    public readonly ttlSeconds: number = 300, // 5 minutes
-    public maxPeers: number = 1 // Free Tier: 1 peer (2 devices total), Pro Tier: 4 peers (5 devices Group Beam)
+    public readonly ttlSeconds: number = 300, // 5 minutes default
+    public maxPeers: number = 1, // Free Tier: 1 peer (2 devices total), Pro Tier: 4 peers (5 devices Group Beam)
+    public readonly slug?: string,
+    public readonly isDropLink: boolean = false
   ) {
     if (Array.isArray(peerOrPeers)) {
       this.peers = peerOrPeers;

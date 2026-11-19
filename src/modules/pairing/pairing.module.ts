@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
 import { PairingGateway } from './presentation/ws/pairing.gateway';
+import { PairingController } from './presentation/http/pairing.controller';
 import { CreateRoomUseCase } from './application/use-cases/create-room.use-case';
 import { JoinRoomUseCase } from './application/use-cases/join-room.use-case';
 import { ROOM_CACHE_PORT } from './application/ports/room-cache.port';
 import { RedisRoomCacheService } from './infrastructure/cache/redis-room-cache.service';
 
 @Module({
+  controllers: [PairingController],
   providers: [
     PairingGateway,
     CreateRoomUseCase,

@@ -8,6 +8,7 @@ export class RedisRoomCacheService implements RoomCachePort {
   private readonly logger = new Logger(RedisRoomCacheService.name);
   private readonly memoryRoomsById = new Map<string, Room>();
   private readonly memoryRoomsByPin = new Map<string, string>();
+  private readonly memoryRoomsBySlug = new Map<string, string>();
 
   constructor(private readonly redisService: RedisService) {}
 
@@ -17,6 +18,10 @@ export class RedisRoomCacheService implements RoomCachePort {
 
   private getPinKey(pin: string): string {
     return `zynq:pin:${pin}`;
+  }
+
+  private getSlugKey(slug: string): string {
+    return `zynq:slug:${slug.toLowerCase()}`;
   }
 
   async save(room: Room): Promise<void> {
@@ -29,21 +34,31 @@ export class RedisRoomCacheService implements RoomCachePort {
       maxPeers: room.maxPeers,
       createdAt: room.createdAt.toISOString(),
       ttlSeconds: room.ttlSeconds,
+      slug: room.slug,
+      isDropLink: room.isDropLink,
     });
 
     // Save in memory
     this.memoryRoomsById.set(room.id, room);
     this.memoryRoomsByPin.set(room.pin, room.id);
+    if (room.slug) {
+      this.memoryRoomsBySlug.set(room.slug.toLowerCase(), room.id);
+    }
 
     // Save in Redis with TTL
     try {
       const client = this.redisService.getClient();
       if (client) {
-        await client
+        const multi = client
           .multi()
           .set(this.getRoomKey(room.id), serialized, 'EX', room.ttlSeconds)
-          .set(this.getPinKey(room.pin), room.id, 'EX', room.ttlSeconds)
-          .exec();
+          .set(this.getPinKey(room.pin), room.id, 'EX', room.ttlSeconds);
+
+        if (room.slug) {
+          multi.set(this.getSlugKey(room.slug), room.id, 'EX', room.ttlSeconds);
+        }
+
+        await multi.exec();
       }
     } catch (err: any) {
       this.logger.warn(`Redis save failed, relying on in-memory cache: ${err.message}`);
@@ -68,6 +83,24 @@ export class RedisRoomCacheService implements RoomCachePort {
     return this.findById(memoryRoomId);
   }
 
+  async findBySlug(slug: string): Promise<Room | null> {
+    try {
+      const client = this.redisService.getClient();
+      if (client) {
+        const roomId = await client.get(this.getSlugKey(slug));
+        if (roomId) {
+          return this.findById(roomId);
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`Redis findBySlug failed, checking in-memory cache: ${err.message}`);
+    }
+
+    const memoryRoomId = this.memoryRoomsBySlug.get(slug.toLowerCase());
+    if (!memoryRoomId) return null;
+    return this.findById(memoryRoomId);
+  }
+
   async findById(roomId: string): Promise<Room | null> {
     try {
       const client = this.redisService.getClient();
@@ -82,7 +115,9 @@ export class RedisRoomCacheService implements RoomCachePort {
             parsed.peers || (parsed.peer ? [parsed.peer] : []),
             new Date(parsed.createdAt),
             parsed.ttlSeconds,
-            parsed.maxPeers || 1
+            parsed.maxPeers || 1,
+            parsed.slug,
+            parsed.isDropLink
           );
           if (room.isExpired()) {
             await this.delete(roomId);
@@ -108,6 +143,9 @@ export class RedisRoomCacheService implements RoomCachePort {
     const memoryRoom = this.memoryRoomsById.get(roomId);
     if (memoryRoom) {
       this.memoryRoomsByPin.delete(memoryRoom.pin);
+      if (memoryRoom.slug) {
+        this.memoryRoomsBySlug.delete(memoryRoom.slug.toLowerCase());
+      }
       this.memoryRoomsById.delete(roomId);
     }
 
@@ -117,11 +155,11 @@ export class RedisRoomCacheService implements RoomCachePort {
         const raw = await client.get(this.getRoomKey(roomId));
         if (raw) {
           const parsed = JSON.parse(raw);
-          await client
-            .multi()
-            .del(this.getRoomKey(roomId))
-            .del(this.getPinKey(parsed.pin))
-            .exec();
+          const multi = client.multi().del(this.getRoomKey(roomId)).del(this.getPinKey(parsed.pin));
+          if (parsed.slug) {
+            multi.del(this.getSlugKey(parsed.slug));
+          }
+          await multi.exec();
         } else {
           await client.del(this.getRoomKey(roomId));
         }
